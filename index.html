@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparador de Arbitraje</title>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .inputs-principales {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 720px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            border: 1px solid #333;
+        }
+
+        .input-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #252525;
+            color: #fff;
+            box-sizing: border-box;
+        }
+
+        .contenedor-cards {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card {
+            background-color: #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #333;
+        }
+
+        h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .virtual-title { color: #f1c40f; }
+        .debito-title { color: #3498db; }
+
+        .linea { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+        .comision { color: #ff5555; }
+        .subtotal { font-weight: bold; color: #fff; border-top: 1px solid #333; pt: 5px; }
+
+        .ganancia-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .positivo { background: rgba(0, 255, 127, 0.1); color: #00ff7f; border: 1px solid #00ff7f; }
+        .negativo { background: rgba(255, 85, 85, 0.1); color: #ff5555; border: 1px solid #ff5555; }
+    </style>
+</head>
+<body>
+
+    <h1>Calculadora de Arbitraje</h1>
+
+    <!-- Entradas compartidas -->
+    <div class="inputs-principales">
+        <div class="input-group">
+            <label>Monto inicial (USDT)</label>
+            <input type="number" id="monto" value="1000" oninput="calcular()">
+        </div>
+        <div class="input-group">
+            <label>Tasa Venta Binance (Bs)</label>
+            <input type="number" id="tasaBs" value="649.01" step="0.01" oninput="calcular()">
+        </div>
+        <div class="input-group">
+            <label>Tasa Compra (USD)</label>
+            <input type="number" id="tasaUsd" value="611" step="0.1" oninput="calcular()">
+        </div>
+    </div>
+
+    <div class="contenedor-cards">
+        <!-- SECCIÓN VIRTUAL -->
+        <div class="card">
+            <h2 class="virtual-title">BDV Virtual</h2>
+            <div id="res-virtual"></div>
+        </div>
+
+        <!-- SECCIÓN DÉBITO -->
+        <div class="card">
+            <h2 class="debito-title">BDV Débito</h2>
+            <div id="res-debito"></div>
+        </div>
+    </div>
+
+    <script>
+        function calcular() {
+            const monto = parseFloat(document.getElementById('monto').value) || 0;
+            const tasaBs = parseFloat(document.getElementById('tasaBs').value) || 0;
+            const tasaUsd = parseFloat(document.getElementById('tasaUsd').value) || 0;
+
+            // Procesar ambos tipos
+            actualizarSeccion('res-virtual', monto, tasaBs, tasaUsd, 0.025); // 2.5%
+            actualizarSeccion('res-debito', monto, tasaBs, tasaUsd, 0.015);  // 1.5%
+        }
+
+        function actualizarSeccion(idContenedor, monto, tasaBs, tasaUsd, comisionTasa) {
+            // Cálculos
+            const bsBrutos = monto * tasaBs;
+            const comisionBDV = bsBrutos * 0.005;
+            const bsNetos = bsBrutos - comisionBDV;
+            const usdDisp = bsNetos / tasaUsd;
+            const comisionT = usdDisp * comisionTasa;
+            const usdTrasT = usdDisp - comisionT;
+            const comisionBPay = usdTrasT * 0.036;
+            const usdFinales = usdTrasT - comisionBPay;
+            const ganancia = usdFinales - monto;
+
+            const claseGanancia = ganancia >= 0 ? 'positivo' : 'negativo';
+
+            // Dibujar los resultados en el HTML
+            document.getElementById(idContenedor).innerHTML = `
+                <div class="linea"><span>Brutos:</span> <span>${bsBrutos.toLocaleString()} Bs</span></div>
+                <div class="linea comision"><span>Comisión BDV (0.5%):</span> <span>-${comisionBDV.toFixed(2)} Bs</span></div>
+                <div class="linea subtotal"><span>Bs Netos:</span> <span>${bsNetos.toLocaleString()} Bs</span></div>
+                <div class="linea"><span>USD Disponibles:</span> <span>${usdDisp.toFixed(2)} $</span></div>
+                <div class="linea comision"><span>Tarjeta (${(comisionTasa*100).toFixed(1)}%):</span> <span>-${comisionT.toFixed(2)} $</span></div>
+                <div class="linea"><span>Tras Tarjeta:</span> <span>${usdTrasT.toFixed(2)} $</span></div>
+                <div class="linea comision"><span>BPay (3.6%):</span> <span>-${comisionBPay.toFixed(2)} $</span></div>
+                
+                <div class="ganancia-box ${claseGanancia}">
+                    Ganancia: ${ganancia.toFixed(2)} USDT
+                    <div style="font-size: 0.8em; margin-top:5px;">Total: ${usdFinales.toFixed(2)} USDT</div>
+                </div>
+            `;
+        }
+
+        // Ejecutar al inicio
+        calcular();
+    </script>
+</body>
+</html>
