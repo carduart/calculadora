@@ -40,6 +40,15 @@
             box-sizing: border-box;
         }
 
+        /* Estilo para el indicador de estado del BCV */
+        .status-bcv {
+            grid-column: 1 / -1;
+            font-size: 11px;
+            color: #f1c40f;
+            margin-top: -5px;
+            text-align: right;
+        }
+
         .contenedor-cards {
             display: flex;
             gap: 20px;
@@ -64,7 +73,7 @@
 
         .linea { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
         .comision { color: #ff5555; }
-        .subtotal { font-weight: bold; color: #fff; border-top: 1px solid #333; pt: 5px; }
+        .subtotal { font-weight: bold; color: #fff; border-top: 1px solid #333; padding-top: 5px; }
 
         .ganancia-box {
             margin-top: 20px;
@@ -94,8 +103,10 @@
         </div>
         <div class="input-group">
             <label>Tasa Compra (USD)</label>
-            <input type="number" id="tasaUsd" value="615.52" step="0.1" oninput="calcular()">
+            <input type="number" id="tasaUsd" value="615.52" step="0.01" oninput="calcular()">
         </div>
+        <!-- Texto informativo del estado del BCV -->
+        <div id="bcvStatus" class="status-bcv">Consultando tasa oficial BCV...</div>
     </div>
 
     <div class="contenedor-cards">
@@ -113,6 +124,37 @@
     </div>
 
     <script>
+        // Función para consultar el BCV y actualizar la Tasa Compra (USD) con el +0.50%
+        async function obtenerTasaBCV() {
+            const statusLabel = document.getElementById('bcvStatus');
+            try {
+                // Petición a la API pública con las tasas actualizadas de Venezuela
+                const respuesta = await fetch('https://ve.descubra.me/api/v1/rates');
+                const datos = await respuesta.json();
+                
+                if(datos && datos.bcv) {
+                    const tasaOficialBCV = parseFloat(datos.bcv);
+                    
+                    // Calculamos el costo real de adquisición en el BDV (Tasa BCV + 0.50%)
+                    const tasaCompraConComision = tasaOficialBCV * 1.005;
+                    
+                    // Asignamos automáticamente el resultado al input de Tasa Compra (USD)
+                    document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
+                    
+                    // Mostramos la información de éxito en el estado del panel
+                    statusLabel.innerText = `🟢 BCV Oficial: ${tasaOficialBCV.toFixed(2)} Bs | Tasa Compra USD Auto (+0.50%): ${tasaCompraConComision.toFixed(2)} Bs`;
+                    
+                    // Volvemos a ejecutar los cálculos globales de las tarjetas
+                    calcular();
+                } else {
+                    statusLabel.innerText = "⚠️ No se reconoció el formato de la tasa. Usando valores manuales.";
+                }
+            } catch (error) {
+                console.error("Error al obtener la tasa del BCV:", error);
+                statusLabel.innerText = "❌ No se pudo conectar con el BCV. Usando valores manuales.";
+            }
+        }
+
         function calcular() {
             const monto = parseFloat(document.getElementById('monto').value) || 0;
             const tasaBs = parseFloat(document.getElementById('tasaBs').value) || 0;
@@ -139,23 +181,26 @@
 
             // Dibujar los resultados en el HTML
             document.getElementById(idContenedor).innerHTML = `
-                <div class="linea"><span>Brutos:</span> <span>${bsBrutos.toLocaleString()} Bs</span></div>
+                <div class="linea"><span>Brutos:</span> <span>${bsBrutos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs</span></div>
                 <div class="linea comision"><span>Comisión BDV (0.5%):</span> <span>-${comisionBDV.toFixed(2)} Bs</span></div>
-                <div class="linea subtotal"><span>Bs Netos:</span> <span>${bsNetos.toLocaleString()} Bs</span></div>
+                <div class="linea subtotal"><span>Bs Netos:</span> <span>${bsNetos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs</span></div>
                 <div class="linea"><span>USD Disponibles:</span> <span>${usdDisp.toFixed(2)} $</span></div>
                 <div class="linea comision"><span>Tarjeta (${(comisionTasa*100).toFixed(1)}%):</span> <span>-${comisionT.toFixed(2)} $</span></div>
                 <div class="linea"><span>Tras Tarjeta:</span> <span>${usdTrasT.toFixed(2)} $</span></div>
                 <div class="linea comision"><span>BPay (3.6%):</span> <span>-${comisionBPay.toFixed(2)} $</span></div>
                 
                 <div class="ganancia-box ${claseGanancia}">
-                    Ganancia: ${ganancia.toFixed(2)} USDT
+                    Ganancia: ${ganancia >= 0 ? '+' : ''}${ganancia.toFixed(2)} USDT
                     <div style="font-size: 0.8em; margin-top:5px;">Total: ${usdFinales.toFixed(2)} USDT</div>
                 </div>
             `;
         }
 
-        // Ejecutar al inicio
+        // Ejecutar los cálculos estáticos iniciales
         calcular();
+        
+        // Consultar la API del BCV en tiempo real en segundo plano
+        obtenerTasaBCV();
     </script>
 </body>
 </html>
