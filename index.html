@@ -119,31 +119,54 @@
     </div>
 
     <script>
-        // Usamos una API alternativa con soporte CORS abierto para evitar fallos en el navegador
+        // Lista de proveedores alternativos para asegurar que siempre obtengas la tasa
         async function obtenerTasaBCV() {
             const statusLabel = document.getElementById('bcvStatus');
+            
+            // --- INTENTO 1: API PyDolar Alternativa ---
             try {
-                const respuesta = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/page?page=bcv');
+                const respuesta = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?monitor=bcv');
                 const datos = await respuesta.json();
-                
-                // Estructura de pyDolarVenezuela: datos.monedas.usd.promedio
-                if(datos && datos.monedas && datos.monedas.usd) {
-                    const tasaOficialBCV = parseFloat(datos.monedas.usd.promedio);
-                    
-                    // Calculamos la tasa con el recargo del 0.50% de la comisión bancaria
-                    const tasaCompraConComision = tasaOficialBCV * 1.005;
-                    
-                    document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
-                    statusLabel.innerHTML = `🟢 BCV Oficial: <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
-                    
-                    calcular();
-                } else {
-                    statusLabel.innerText = "⚠️ Formato inesperado en API. Usando valores manuales.";
+                if (datos && datos.monedas && datos.monedas.usd) {
+                    procesarTasa(parseFloat(datos.monedas.usd.promedio), "PyDolar Main");
+                    return; // Éxito, salimos de la función
                 }
-            } catch (error) {
-                console.error("Error al obtener la tasa del BCV:", error);
-                statusLabel.innerText = "❌ Error de conexión al BCV. Ajusta la Tasa Compra manualmente.";
-            }
+            } catch (e) { console.log("Intento 1 fallido, probando respaldo 1..."); }
+
+            // --- INTENTO 2: API CriptoDolar ---
+            try {
+                const respuesta = await fetch('https://criptodolar.xyz/api/v1/providers/bcv');
+                const datos = await respuesta.json();
+                if (datos && datos.price) {
+                    procesarTasa(parseFloat(datos.price), "CriptoDolar");
+                    return; // Éxito, salimos de la función
+                }
+            } catch (e) { console.log("Intento 2 fallido, probando respaldo 2..."); }
+
+            // --- INTENTO 3: API Descubra con Proxy CORS ---
+            try {
+                const respuesta = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://ve.descubra.me/api/v1/rates'));
+                const datos = await respuesta.json();
+                const contenido = JSON.parse(datos.contents);
+                if (contenido && contenido.bcv) {
+                    procesarTasa(parseFloat(contenido.bcv), "Descubra Proxy");
+                    return; // Éxito
+                }
+            } catch (e) { console.log("Intento 3 fallido."); }
+
+            // Si todos fallan
+            statusLabel.innerText = "❌ No se pudo conectar con ningún servidor del BCV. Ajusta la Tasa Compra manualmente.";
+        }
+
+        // Función auxiliar para aplicar el +0.50% e inyectarlo en la interfaz
+        function procesarTasa(tasaOficialBCV, fuente) {
+            const statusLabel = document.getElementById('bcvStatus');
+            const tasaCompraConComision = tasaOficialBCV * 1.005;
+            
+            document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
+            statusLabel.innerHTML = `🟢 BCV (${fuente}): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
+            
+            calcular();
         }
 
         function calcular() {
@@ -184,6 +207,7 @@
             `;
         }
 
+        // Ejecución inicial
         calcular();
         obtenerTasaBCV();
     </script>
