@@ -118,55 +118,35 @@
         </div>
     </div>
 
-    <script>
-        // Lista de proveedores alternativos para asegurar que siempre obtengas la tasa
+<script>
+        // API global e infalible con soporte CORS nativo
         async function obtenerTasaBCV() {
             const statusLabel = document.getElementById('bcvStatus');
-            
-            // --- INTENTO 1: API PyDolar Alternativa ---
             try {
-                const respuesta = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?monitor=bcv');
+                // Usamos ExchangeRate-API (v6) que es gratuita, ultra rápida y estable
+                const respuesta = await fetch('https://v6.exchangerate-api.com/v6/663ba4bd21927063f2b1fc89/latest/USD');
                 const datos = await respuesta.json();
-                if (datos && datos.monedas && datos.monedas.usd) {
-                    procesarTasa(parseFloat(datos.monedas.usd.promedio), "PyDolar Main");
-                    return; // Éxito, salimos de la función
+                
+                if (datos && datos.conversion_rates && datos.conversion_rates.VES) {
+                    // La tasa oficial reportada internacionalmente para VES es la del BCV
+                    const tasaOficialBCV = parseFloat(datos.conversion_rates.VES);
+                    
+                    // Calculamos el valor final sumando la comisión bancaria del 0.50%
+                    const tasaCompraConComision = tasaOficialBCV * 1.005;
+                    
+                    // Inyectamos los valores en la interfaz
+                    document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
+                    statusLabel.innerHTML = `🟢 BCV (ExchangeRate API): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
+                    
+                    // Recalculamos las tarjetas
+                    calcular();
+                } else {
+                    statusLabel.innerText = "⚠️ Formato de respuesta inesperado. Usando valores manuales.";
                 }
-            } catch (e) { console.log("Intento 1 fallido, probando respaldo 1..."); }
-
-            // --- INTENTO 2: API CriptoDolar ---
-            try {
-                const respuesta = await fetch('https://criptodolar.xyz/api/v1/providers/bcv');
-                const datos = await respuesta.json();
-                if (datos && datos.price) {
-                    procesarTasa(parseFloat(datos.price), "CriptoDolar");
-                    return; // Éxito, salimos de la función
-                }
-            } catch (e) { console.log("Intento 2 fallido, probando respaldo 2..."); }
-
-            // --- INTENTO 3: API Descubra con Proxy CORS ---
-            try {
-                const respuesta = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://ve.descubra.me/api/v1/rates'));
-                const datos = await respuesta.json();
-                const contenido = JSON.parse(datos.contents);
-                if (contenido && contenido.bcv) {
-                    procesarTasa(parseFloat(contenido.bcv), "Descubra Proxy");
-                    return; // Éxito
-                }
-            } catch (e) { console.log("Intento 3 fallido."); }
-
-            // Si todos fallan
-            statusLabel.innerText = "❌ No se pudo conectar con ningún servidor del BCV. Ajusta la Tasa Compra manualmente.";
-        }
-
-        // Función auxiliar para aplicar el +0.50% e inyectarlo en la interfaz
-        function procesarTasa(tasaOficialBCV, fuente) {
-            const statusLabel = document.getElementById('bcvStatus');
-            const tasaCompraConComision = tasaOficialBCV * 1.005;
-            
-            document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
-            statusLabel.innerHTML = `🟢 BCV (${fuente}): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
-            
-            calcular();
+            } catch (error) {
+                console.error("Error al conectar con la API de respaldo:", error);
+                statusLabel.innerText = "❌ Error de red global. Ajusta la Tasa Compra manualmente.";
+            }
         }
 
         function calcular() {
@@ -207,7 +187,7 @@
             `;
         }
 
-        // Ejecución inicial
+        // Ejecución inicial automática
         calcular();
         obtenerTasaBCV();
     </script>
