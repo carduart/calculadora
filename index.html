@@ -119,33 +119,33 @@
     </div>
 
 <script>
-        // API global e infalible con soporte CORS nativo
+        // API pública directa, sin claves (No-Key) y con CORS abierto
         async function obtenerTasaBCV() {
             const statusLabel = document.getElementById('bcvStatus');
             try {
-                // Usamos ExchangeRate-API (v6) que es gratuita, ultra rápida y estable
-                const respuesta = await fetch('https://v6.exchangerate-api.com/v6/663ba4bd21927063f2b1fc89/latest/USD');
+                // Endpoint abierto oficial sin restricciones de token
+                const respuesta = await fetch('https://open.er-api.com/v6/latest/USD');
                 const datos = await respuesta.json();
                 
-                if (datos && datos.conversion_rates && datos.conversion_rates.VES) {
-                    // La tasa oficial reportada internacionalmente para VES es la del BCV
-                    const tasaOficialBCV = parseFloat(datos.conversion_rates.VES);
+                // La API abierta devuelve el objeto 'rates' en lugar de 'conversion_rates'
+                if (datos && datos.rates && datos.rates.VES) {
+                    const tasaOficialBCV = parseFloat(datos.rates.VES);
                     
-                    // Calculamos el valor final sumando la comisión bancaria del 0.50%
+                    // Sumamos el 0.50% de la comisión bancaria del BDV
                     const tasaCompraConComision = tasaOficialBCV * 1.005;
                     
-                    // Inyectamos los valores en la interfaz
+                    // Actualizamos el input de Tasa Compra (USD)
                     document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
-                    statusLabel.innerHTML = `🟢 BCV (ExchangeRate API): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
+                    statusLabel.innerHTML = `🟢 BCV (Open API): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
                     
-                    // Recalculamos las tarjetas
+                    // Forzamos el recalculo de los cuadros de ganancia
                     calcular();
                 } else {
-                    statusLabel.innerText = "⚠️ Formato de respuesta inesperado. Usando valores manuales.";
+                    statusLabel.innerText = "⚠️ Formato de respuesta inesperado en la red abierta. Usando valores manuales.";
                 }
             } catch (error) {
-                console.error("Error al conectar con la API de respaldo:", error);
-                statusLabel.innerText = "❌ Error de red global. Ajusta la Tasa Compra manualmente.";
+                console.error("Error al conectar con la API abierta:", error);
+                statusLabel.innerText = "❌ Error de conexión con el servidor. Ajusta la Tasa Compra manualmente.";
             }
         }
 
@@ -187,7 +187,7 @@
             `;
         }
 
-        // Ejecución inicial automática
+        // Arranque inicial estático y consulta en segundo plano
         calcular();
         obtenerTasaBCV();
     </script>
