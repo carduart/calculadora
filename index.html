@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comparador de Arbitraje</title>
+    <title>Comparador de Arbitraje BDV & Banesco</title>
     <style>
         body {
             background-color: #0f0f0f;
@@ -22,7 +22,7 @@
             border-radius: 12px;
             margin-bottom: 20px;
             width: 100%;
-            max-width: 720px;
+            max-width: 900px;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
@@ -49,37 +49,40 @@
         }
 
         .contenedor-cards {
-            display: flex;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
             width: 100%;
-            max-width: 800px;
-            flex-wrap: wrap;
-            justify-content: center;
+            max-width: 1100px;
         }
 
         .card {
             background-color: #1a1a1a;
             border-radius: 15px;
-            padding: 20px;
-            flex: 1;
-            min-width: 300px;
+            padding: 18px;
             border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .virtual-title { color: #f1c40f; }
-        .debito-title { color: #3498db; }
+        h2 { margin-top: 0; font-size: 1.1em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .bdv-virtual { color: #f1c40f; }
+        .bdv-debito { color: #3498db; }
+        .banesco-virtual { color: #2ecc71; }
+        .banesco-fisica { color: #e67e22; }
 
-        .linea { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+        .linea { display: flex; justify-content: space-between; margin: 6px 0; font-size: 13px; }
         .comision { color: #ff5555; }
         .subtotal { font-weight: bold; color: #fff; border-top: 1px solid #333; padding-top: 5px; }
 
         .ganancia-box {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 10px;
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
             text-align: center;
             font-weight: bold;
+            font-size: 1.05em;
         }
 
         .positivo { background: rgba(0, 255, 127, 0.1); color: #00ff7f; border: 1px solid #00ff7f; }
@@ -88,7 +91,7 @@
 </head>
 <body>
 
-    <h1>Calculadora de Arbitraje</h1>
+    <h1>Comparador de Arbitraje Multi-Banco</h1>
 
     <div class="inputs-principales">
         <div class="input-group">
@@ -100,52 +103,59 @@
             <input type="number" id="tasaBs" value="730" step="0.01" oninput="calcular()">
         </div>
         <div class="input-group">
-            <label>Tasa Compra (USD)</label>
-            <input type="number" id="tasaUsd" value="615.52" step="0.01" oninput="calcular()">
+            <label>Tasa Compra USD (BCV + 0.5%)</label>
+            <input type="number" id="tasaUsd" value="626.14" step="0.01" oninput="calcular()">
         </div>
         <div id="bcvStatus" class="status-bcv">Consultando tasa oficial BCV...</div>
     </div>
 
     <div class="contenedor-cards">
+        <!-- BDV VIRTUAL -->
         <div class="card">
-            <h2 class="virtual-title">BDV Virtual</h2>
-            <div id="res-virtual"></div>
+            <h2 class="bdv-virtual">BDV Virtual (2.5%)</h2>
+            <div id="res-bdv-virtual"></div>
         </div>
 
+        <!-- BDV DÉBITO -->
         <div class="card">
-            <h2 class="debito-title">BDV Débito</h2>
-            <div id="res-debito"></div>
+            <h2 class="bdv-debito">BDV Débito (1.5%)</h2>
+            <div id="res-bdv-debito"></div>
+        </div>
+
+        <!-- BANESCO PREPAGO VIRTUAL -->
+        <div class="card">
+            <h2 class="banesco-virtual">Banesco Prep. Virtual (1.5%)</h2>
+            <div id="res-banesco-virtual"></div>
+        </div>
+
+        <!-- BANESCO PREPAGO FÍSICA -->
+        <div class="card">
+            <h2 class="banesco-fisica">Banesco Prep. Física (1.0%)</h2>
+            <div id="res-banesco-fisica"></div>
         </div>
     </div>
 
-<script>
-        // API pública directa, sin claves (No-Key) y con CORS abierto
+    <script>
         async function obtenerTasaBCV() {
             const statusLabel = document.getElementById('bcvStatus');
             try {
-                // Endpoint abierto oficial sin restricciones de token
                 const respuesta = await fetch('https://open.er-api.com/v6/latest/USD');
                 const datos = await respuesta.json();
                 
-                // La API abierta devuelve el objeto 'rates' en lugar de 'conversion_rates'
                 if (datos && datos.rates && datos.rates.VES) {
                     const tasaOficialBCV = parseFloat(datos.rates.VES);
+                    const tasaCompraConComision = tasaOficialBCV * 1.005; // Tasa oficial + 0.5% intervención
                     
-                    // Sumamos el 0.50% de la comisión bancaria del BDV
-                    const tasaCompraConComision = tasaOficialBCV * 1.005;
-                    
-                    // Actualizamos el input de Tasa Compra (USD)
                     document.getElementById('tasaUsd').value = tasaCompraConComision.toFixed(2);
-                    statusLabel.innerHTML = `🟢 BCV (Open API): <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Tasa Compra USD (+0.50%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
+                    statusLabel.innerHTML = `🟢 BCV Oficial: <b>${tasaOficialBCV.toFixed(2)} Bs</b> | Compra (+0.5%): <b>${tasaCompraConComision.toFixed(2)} Bs</b>`;
                     
-                    // Forzamos el recalculo de los cuadros de ganancia
                     calcular();
                 } else {
-                    statusLabel.innerText = "⚠️ Formato de respuesta inesperado en la red abierta. Usando valores manuales.";
+                    statusLabel.innerText = "⚠️ Respuesta de API inusual. Ajusta la Tasa Compra manualmente.";
                 }
             } catch (error) {
-                console.error("Error al conectar con la API abierta:", error);
-                statusLabel.innerText = "❌ Error de conexión con el servidor. Ajusta la Tasa Compra manualmente.";
+                console.error("Error al consultar API:", error);
+                statusLabel.innerText = "❌ No se pudo actualizar el BCV automáticamente. Ajusta los valores manualmente.";
             }
         }
 
@@ -154,40 +164,47 @@
             const tasaBs = parseFloat(document.getElementById('tasaBs').value) || 0;
             const tasaUsd = parseFloat(document.getElementById('tasaUsd').value) || 0;
 
-            actualizarSeccion('res-virtual', monto, tasaBs, tasaUsd, 0.025);
-            actualizarSeccion('res-debito', monto, tasaBs, tasaUsd, 0.015);
+            // BPay ajustado exactamente al 4.1%
+            const comisionBPay = 0.041;
+
+            // Procesar las 4 opciones simultáneamente
+            actualizarSeccion('res-bdv-virtual', monto, tasaBs, tasaUsd, 0.025, comisionBPay);     // BDV Virtual: 2.5%
+            actualizarSeccion('res-bdv-debito', monto, tasaBs, tasaUsd, 0.015, comisionBPay);      // BDV Débito: 1.5%
+            actualizarSeccion('res-banesco-virtual', monto, tasaBs, tasaUsd, 0.015, comisionBPay); // Banesco Virtual: 1.5%
+            actualizarSeccion('res-banesco-fisica', monto, tasaBs, tasaUsd, 0.010, comisionBPay);  // Banesco Física: 1.0%
         }
 
-        function actualizarSeccion(idContenedor, monto, tasaBs, tasaUsd, comisionTasa) {
+        function actualizarSeccion(idContenedor, monto, tasaBs, tasaUsd, comisionTasa, comisionBPayTasa) {
             const bsBrutos = monto * tasaBs;
-            const comisionBDV = bsBrutos * 0.005;
-            const bsNetos = bsBrutos - comisionBDV;
+            const comisionBanco = bsBrutos * 0.005; // 0.5% de comisión por compra en el banco
+            const bsNetos = bsBrutos - comisionBanco;
+            
             const usdDisp = bsNetos / tasaUsd;
             const comisionT = usdDisp * comisionTasa;
             const usdTrasT = usdDisp - comisionT;
-            const comisionBPay = usdTrasT * 0.041;
+            
+            const comisionBPay = usdTrasT * comisionBPayTasa; // 4.1% Binance/BPay
             const usdFinales = usdTrasT - comisionBPay;
             const ganancia = usdFinales - monto;
 
             const claseGanancia = ganancia >= 0 ? 'positivo' : 'negativo';
 
             document.getElementById(idContenedor).innerHTML = `
-                <div class="linea"><span>Brutos:</span> <span>${bsBrutos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs</span></div>
-                <div class="linea comision"><span>Comisión BDV (0.5%):</span> <span>-${comisionBDV.toFixed(2)} Bs</span></div>
+                <div class="linea"><span>Bs Brutos:</span> <span>${bsBrutos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs</span></div>
+                <div class="linea comision"><span>Comisión Banco (0.5%):</span> <span>-${comisionBanco.toFixed(2)} Bs</span></div>
                 <div class="linea subtotal"><span>Bs Netos:</span> <span>${bsNetos.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs</span></div>
                 <div class="linea"><span>USD Disponibles:</span> <span>${usdDisp.toFixed(2)} $</span></div>
                 <div class="linea comision"><span>Tarjeta (${(comisionTasa*100).toFixed(1)}%):</span> <span>-${comisionT.toFixed(2)} $</span></div>
                 <div class="linea"><span>Tras Tarjeta:</span> <span>${usdTrasT.toFixed(2)} $</span></div>
-                <div class="linea comision"><span>BPay (3.6%):</span> <span>-${comisionBPay.toFixed(2)} $</span></div>
+                <div class="linea comision"><span>BPay (4.1%):</span> <span>-${comisionBPay.toFixed(2)} $</span></div>
                 
                 <div class="ganancia-box ${claseGanancia}">
                     Ganancia: ${ganancia >= 0 ? '+' : ''}${ganancia.toFixed(2)} USDT
-                    <div style="font-size: 0.8em; margin-top:5px;">Total: ${usdFinales.toFixed(2)} USDT</div>
+                    <div style="font-size: 0.8em; margin-top:4px;">Total: ${usdFinales.toFixed(2)} USDT</div>
                 </div>
             `;
         }
 
-        // Arranque inicial estático y consulta en segundo plano
         calcular();
         obtenerTasaBCV();
     </script>
